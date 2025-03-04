@@ -1,53 +1,62 @@
 import { getRepositories, extractSkillsFromRepositories } from '@/lib/github';
 import { motion } from 'framer-motion';
 
+// Define a type for skill categories
+type SkillCategory = 'Languages' | 'Frontend' | 'Backend' | 'Database' | 'DevOps' | 'Tools';
+type SkillCategoriesMap = Record<SkillCategory, string[]>;
+
+// Fallback skills data
+const fallbackSkillCategories: SkillCategoriesMap = {
+  'Languages': ['JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'PHP'],
+  'Frontend': ['React', 'Vue', 'Angular', 'Next.js', 'HTML', 'CSS', 'SASS', 'Tailwind CSS'],
+  'Backend': ['Node.js', 'Express', 'Django', 'Flask', 'Spring Boot', 'ASP.NET'],
+  'Database': ['MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase'],
+  'DevOps': ['Docker', 'Kubernetes', 'AWS', 'GCP', 'CI/CD', 'Git'],
+  'Tools': ['VSCode', 'Webpack', 'Vite', 'Jest', 'Testing Library', 'Figma']
+};
+
 export async function Skills() {
-  const repositories = await getRepositories();
-  const skills = extractSkillsFromRepositories(repositories);
+  // Fetch repositories and extract skills, with error handling
+  let skillCategories: SkillCategoriesMap = fallbackSkillCategories;
   
-  // Group skills into categories
-  const skillCategories = {
-    'Languages': ['JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'PHP', 'Ruby', 'Swift', 'Go', 'Rust', 'C#', 'Kotlin'],
-    'Frontend': ['React', 'Vue', 'Angular', 'Next.js', 'Svelte', 'HTML', 'CSS', 'SASS', 'LESS', 'Tailwind CSS', 'Bootstrap', 'Material UI'],
-    'Backend': ['Node.js', 'Express', 'NestJS', 'Django', 'Flask', 'Spring Boot', 'Laravel', 'Ruby on Rails', 'ASP.NET', 'FastAPI'],
-    'Database': ['MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite', 'Firebase', 'DynamoDB', 'Supabase', 'Elasticsearch'],
-    'DevOps': ['Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Git', 'GitHub Actions', 'CircleCI', 'Jenkins', 'Terraform'],
-    'Mobile': ['React Native', 'Flutter', 'Android', 'iOS', 'Ionic', 'Xamarin'],
-    'Other': ['GraphQL', 'REST API', 'WebSockets', 'OAuth', 'JWT', 'Microservices', 'Serverless', 'Testing', 'CI/CD'],
-  };
-  
-  // Organize skills into their categories
-  const organizedSkills = Object.entries(skillCategories).map(([category, categorySkills]) => {
-    const matchedSkills = skills.filter(skill => 
-      categorySkills.some(categorySkill => 
-        categorySkill.toLowerCase() === skill.toLowerCase()
-      )
-    );
-    
-    return {
-      category,
-      skills: matchedSkills,
-    };
-  }).filter(category => category.skills.length > 0);
-  
-  // Add any remaining skills to "Other" category
-  const categorizedSkills = organizedSkills.flatMap(category => category.skills);
-  const uncategorizedSkills = skills.filter(skill => 
-    !categorizedSkills.some(categorizedSkill => 
-      categorizedSkill.toLowerCase() === skill.toLowerCase()
-    )
-  );
-  
-  if (uncategorizedSkills.length > 0) {
-    const otherCategory = organizedSkills.find(category => category.category === 'Other');
-    if (otherCategory) {
-      otherCategory.skills = [...otherCategory.skills, ...uncategorizedSkills];
-    } else {
-      organizedSkills.push({
-        category: 'Other',
-        skills: uncategorizedSkills,
+  try {
+    const repositories = await getRepositories();
+    if (repositories.length > 0) {
+      const skills = extractSkillsFromRepositories(repositories);
+      
+      // Group skills into categories
+      skillCategories = {
+        'Languages': ['JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'PHP', 'Ruby', 'Swift', 'Go', 'Rust', 'C#', 'Kotlin'].filter(lang => 
+          skills.includes(lang)
+        ),
+        'Frontend': ['React', 'Vue', 'Angular', 'Next.js', 'Svelte', 'HTML', 'CSS', 'SASS', 'LESS', 'Tailwind CSS', 'Bootstrap', 'Material UI'].filter(tech => 
+          skills.includes(tech)
+        ),
+        'Backend': ['Node.js', 'Express', 'Django', 'Flask', 'Spring Boot', 'ASP.NET', 'Laravel', 'Ruby on Rails', 'GraphQL', 'REST API'].filter(tech => 
+          skills.includes(tech)
+        ),
+        'Database': ['MongoDB', 'PostgreSQL', 'MySQL', 'SQLite', 'Redis', 'Firebase', 'DynamoDB', 'Oracle', 'Cassandra'].filter(db => 
+          skills.includes(db)
+        ),
+        'DevOps': ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'CI/CD', 'Jenkins', 'GitHub Actions', 'GitLab CI', 'Terraform'].filter(tool => 
+          skills.includes(tool)
+        ),
+        'Tools': ['VSCode', 'Git', 'Webpack', 'Vite', 'Babel', 'Jest', 'Mocha', 'Chai', 'Cypress', 'Selenium', 'Figma', 'Photoshop'].filter(tool => 
+          skills.includes(tool)
+        )
+      };
+      
+      // If any category is empty after filtering, fall back to predefined skills
+      Object.keys(skillCategories).forEach((category) => {
+        const key = category as SkillCategory;
+        if (skillCategories[key].length === 0) {
+          skillCategories[key] = fallbackSkillCategories[key];
+        }
       });
     }
+  } catch (error) {
+    console.error('Error in Skills component:', error);
+    // Using fallback data (already initialized)
   }
   
   return (
@@ -65,11 +74,11 @@ export async function Skills() {
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {organizedSkills.map((category, index) => (
-            <div key={category.category} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">{category.category}</h3>
+          {Object.entries(skillCategories).map(([category, skills], index) => (
+            <div key={category} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+              <h3 className="text-xl font-semibold mb-4">{category}</h3>
               <div className="flex flex-wrap gap-2">
-                {category.skills.map((skill, skillIndex) => (
+                {skills.map((skill, skillIndex) => (
                   <motion.div
                     key={skill}
                     initial={{ opacity: 0, scale: 0.8 }}

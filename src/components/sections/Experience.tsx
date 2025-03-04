@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+// import Link from 'next/link';
 
 export function Experience() {
   return (
@@ -61,10 +61,10 @@ export function Experience() {
           </div>
           
           <div className="text-center mt-12">
-            <Button asChild>
-              <Link href="/resume.pdf" target="_blank" rel="noopener noreferrer">
-                Download Full CV
-              </Link>
+            <Button asChild disabled={true}>
+             {
+              "Download Full CV"
+             }
             </Button>
           </div>
         </motion.div>

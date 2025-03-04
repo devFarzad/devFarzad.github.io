@@ -1,12 +1,42 @@
 import { Octokit } from '@octokit/rest';
 import { formatDistanceToNow } from 'date-fns';
 
+// Cache data to reduce API calls
+let profileCache: GithubProfile | null = null;
+let repositoriesCache: Repository[] | null = null;
+const languagesCache: Record<string, Language[]> = {};
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+let lastProfileFetch = 0;
+let lastReposFetch = 0;
+
 // Initialize Octokit with a GitHub token if available
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
+  request: {
+    retries: 3,
+    retryAfter: 5
+  }
 });
 
 const username = process.env.GITHUB_USERNAME || 'devFarzad';
+
+// Default profile data as fallback
+const defaultProfile: GithubProfile = {
+  login: username,
+  avatar_url: 'https://avatars.githubusercontent.com/' + username,
+  html_url: 'https://github.com/' + username,
+  name: 'Farzad Pousheh',
+  company: null,
+  blog: null,
+  location: 'Remote',
+  email: null,
+  bio: 'Full-stack software developer specializing in creating robust, scalable applications.',
+  twitter_username: null,
+  public_repos: 0,
+  followers: 0,
+  following: 0,
+  created_at: new Date().toISOString(),
+};
 
 export interface Repository {
   id: number;
@@ -48,29 +78,51 @@ export interface Language {
 
 export async function getGithubProfile(): Promise<GithubProfile> {
   try {
+    // Return cached data if available and fresh
+    const now = Date.now();
+    if (profileCache && now - lastProfileFetch < CACHE_DURATION) {
+      return profileCache;
+    }
+    
     const { data } = await octokit.users.getByUsername({
       username,
     });
     
+    // Update cache
+    profileCache = data as GithubProfile;
+    lastProfileFetch = now;
+    
     return data as GithubProfile;
   } catch (error) {
     console.error('Error fetching GitHub profile:', error);
-    throw new Error('Failed to fetch GitHub profile');
+    // Return default profile if API call fails
+    return defaultProfile;
   }
 }
 
 export async function getRepositories(): Promise<Repository[]> {
   try {
+    // Return cached data if available and fresh
+    const now = Date.now();
+    if (repositoriesCache && now - lastReposFetch < CACHE_DURATION) {
+      return repositoriesCache;
+    }
+    
     const { data } = await octokit.repos.listForUser({
       username,
       sort: 'updated',
       per_page: 100,
     });
     
+    // Update cache
+    repositoriesCache = data as Repository[];
+    lastReposFetch = now;
+    
     return data as Repository[];
   } catch (error) {
     console.error('Error fetching repositories:', error);
-    throw new Error('Failed to fetch repositories');
+    // Return empty array or mock data if API call fails
+    return [];
   }
 }
 
@@ -79,6 +131,24 @@ export async function getPinnedRepositories(): Promise<Repository[]> {
     // GitHub doesn't have a direct API for pinned repos
     // We'll fetch all repos and filter the most relevant ones
     const allRepos = await getRepositories();
+    
+    // If no repos, return fallback data
+    if (allRepos.length === 0) {
+      return Array(3).fill(null).map((_, i) => ({
+        id: i,
+        name: `Project ${i + 1}`,
+        full_name: `${username}/project-${i + 1}`,
+        description: 'A sample project description that showcases my development skills and expertise.',
+        html_url: `https://github.com/${username}`,
+        homepage: null,
+        language: ['JavaScript', 'TypeScript', 'Python'][i % 3] || 'JavaScript',
+        stargazers_count: 0,
+        forks_count: 0,
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        topics: ['web', 'react', 'nextjs']
+      }));
+    }
     
     // Sort by stars and updated date to find the most relevant
     return allRepos
@@ -93,12 +163,31 @@ export async function getPinnedRepositories(): Promise<Repository[]> {
       .slice(0, 6); // Take top 6 as "pinned"
   } catch (error) {
     console.error('Error fetching pinned repositories:', error);
-    throw new Error('Failed to fetch pinned repositories');
+    // Return fallback data
+    return Array(3).fill(null).map((_, i) => ({
+      id: i,
+      name: `Project ${i + 1}`,
+      full_name: `${username}/project-${i + 1}`,
+      description: 'A sample project description that showcases my development skills and expertise.',
+      html_url: `https://github.com/${username}`,
+      homepage: null,
+      language: ['JavaScript', 'TypeScript', 'Python'][i % 3] || 'JavaScript',
+      stargazers_count: 0,
+      forks_count: 0,
+      updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      topics: ['web', 'react', 'nextjs']
+    }));
   }
 }
 
 export async function getLanguagesForRepo(repo: string): Promise<Language[]> {
   try {
+    // Check cache first
+    if (languagesCache[repo]) {
+      return languagesCache[repo];
+    }
+    
     const { data } = await octokit.repos.listLanguages({
       owner: username,
       repo,
@@ -106,14 +195,24 @@ export async function getLanguagesForRepo(repo: string): Promise<Language[]> {
     
     const total = Object.values(data).reduce((acc, val) => acc + (val as number), 0);
     
-    return Object.entries(data).map(([name, bytes]) => ({
+    const languages = Object.entries(data).map(([name, bytes]) => ({
       name,
       color: getLanguageColor(name),
       percentage: Math.round(((bytes as number) / total) * 100),
     }));
+    
+    // Update cache
+    languagesCache[repo] = languages;
+    
+    return languages;
   } catch (error) {
     console.error(`Error fetching languages for ${repo}:`, error);
-    return [];
+    // Return default languages if API call fails
+    return [
+      { name: 'JavaScript', color: '#f1e05a', percentage: 60 },
+      { name: 'CSS', color: '#563d7c', percentage: 30 },
+      { name: 'HTML', color: '#e34c26', percentage: 10 }
+    ];
   }
 }
 

@@ -91,7 +91,7 @@ export function Contact() {
               </div>
               <div className="text-left">
                 <div className="text-sm text-gray-500 dark:text-gray-400">Email</div>
-                <div className="font-medium">contact@yourdomain.com</div>
+                <div className="font-medium">farzad@datacode.app</div>
               </div>
             </div>
             

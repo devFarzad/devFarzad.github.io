@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { HeroAnimationCSS } from "@/components/sections/Hero";
+import { Analytics } from '@vercel/analytics/next';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -101,6 +102,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <HeroAnimationCSS />
+        <Analytics />
       </body>
     </html>
   );
